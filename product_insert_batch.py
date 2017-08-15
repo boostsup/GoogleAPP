@@ -26,7 +26,6 @@ from app.myutil import myutil
 start = datetime.datetime.now()
 root_path=os.path.split(os.path.abspath(__file__))[0]+'/'
 root_path=root_path.replace('\\','/')
-MAX_PAGE_SIZE = 50
 store_name = 'olivesmall'
 inven_path = myutil.get_path(root_path,['src','inven',store_name])+'status_'+time.strftime("%Y-%m-%d",time.localtime())+'.txt'
 
