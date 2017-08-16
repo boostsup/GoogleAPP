@@ -30,8 +30,9 @@ root_path=root_path.replace('\\','/')
 store_name = 'olivesmall'
 inven_path = myutil.get_path(root_path,['src','inven',store_name])+'status_'+time.strftime("%Y-%m-%d",time.localtime())+'.txt'
 cat_dir_name = 'us-all'
-BATCH_SIZE = 2
-
+BATCH_SIZE = 5
+f_log1 = open(myutil.get_path(root_path,['src','log',store_name])+'log1.txt','w',encoding='utf-8')
+f_log3 = open(myutil.get_path(root_path,['src','log',store_name])+'log3.txt','w',encoding='utf-8')
 def google_product_type(cat_dir_name,product_cat):
 	cat_name = '-'.join(cat_dir_name.split('-')[1:])
 	google_type = {'all':{'Health & Household':'Health & Beauty','Beauty & Personal Care':'Health & Beauty','Home & Kitchen':'Home & Garden','Industrial & Scientific':'Business & Industrial','Office Products':'Office Supplies',\
@@ -51,20 +52,22 @@ def create_product(config, product_dic, mode='insert'):
 	Returns:
 			A new product in dictionary form.
 	"""
-	product_dic['image_urls'] = product_dic['image_urls'].split(';')
+	image_url_list= product_dic['image_urls'].split(';')
+	product_dic['image_url_list'] = list(filter(None,image_url_list))
 	try:
-		product_dic['googleProductCategory'] = google_product_type(cat_dir_name,product_dic['product_type'].split('>')[0])
+		product_dic['googleProductCategory'] = google_product_type(cat_dir_name,product_dic['producttype'].split('>')[0])
 	except:
-		traceback.print_exc()
+		f_log3.write(str(product_dic['productid'])+'\n')
+		#traceback.print_exc()
 		pass
 	if mode.lower() == 'insert':
 		product = {
 				'offerId':
 						'shopify_US_'+product_dic['productid']+'_'+product_dic['variantid'],
 				'title':
-						remove_non_ascii(product_dic['title']),
+						remove_non_ascii(product_dic['title'][:130]),
 				'description':
-						remove_non_ascii(product_dic['description']),
+						remove_non_ascii(product_dic['description'][:4500]),
 				'adwordsRedirect':
 						product_dic['link'],
 				'customLabel0':
@@ -72,9 +75,7 @@ def create_product(config, product_dic, mode='insert'):
 				'link':
 						product_dic['link'],
 				'imageLink':
-						product_dic['image_urls'][0],
-				'additionalImageLinks':
-				        product_dic['image_urls'][1:],
+						product_dic['image_url_list'][0] if product_dic['image_url_list'] else '',
 				'contentLanguage':
 						_constants.CONTENT_LANGUAGE,
 				'targetCountry':
@@ -87,10 +88,8 @@ def create_product(config, product_dic, mode='insert'):
 						time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime(time.time()+3600*24*int(30))),
 				'condition':
 						product_dic['condition'],
-				'googleProductCategory':
-						product_dic.get('googleProductCategory',''),
 				'productType':
-						product_dic.get('product_​​type',''),
+						product_dic['producttype'],
 				'brand':
 						remove_non_ascii(product_dic['brand']),
 				'price': {
@@ -154,7 +153,11 @@ def create_product(config, product_dic, mode='insert'):
 		product['gtin'] = product_dic['gtin']
 	if not product_dic['gtin']:
 		product['mpn'] = product_dic['sku'].split('-')[-1]
-	print(product)
+	if product_dic['image_url_list'][1:]:
+		product['additionalImageLinks'] = product_dic['image_url_list'][1:]
+	if product_dic.get('googleProductCategory'):
+		product['googleProductCategory'] = product_dic['googleProductCategory']
+	#print(product)
 	return product
 
 def product_insert(argv,products_list,mode):
@@ -193,6 +196,7 @@ def product_insert(argv,products_list,mode):
 						product = entry['product']
 						print('Product with offerId "%s" was update.' %
 									(product['offerId']))
+						f_log1.write(str(product['offerId'].split('_')[-1])+'\n')
 					elif not shopping_common.json_absent_or_false(entry, 'errors'):
 						print (entry['errors'])
 			else:
@@ -225,6 +229,14 @@ def get_products(file_path):
 	return products_list
 
 products_list = get_products(inven_path)
+# f_log1 = open(myutil.get_path(root_path,['src','log',store_name])+'log1.txt','w',encoding='utf-8')
+# f_log2 = open(myutil.get_path(root_path,['src','log',store_name])+'log2.txt','w',encoding='utf-8')
+# for product_dic in products_list:
+# 	if product_dic.get('product_type'):
+# 		f_log1.write(str(product_dic['productid'])+'\t'+google_product_type(cat_dir_name,product_dic['product_type'].split('>')[0])+'\n')
+# 	else:
+# 		f_log2.write(str(product_dic['productid'])+'\t'+str(product_dic['variantid'])+'\n')
+# exit()
 product_insert(sys.argv,products_list,'insert')
 
 end = datetime.datetime.now()
